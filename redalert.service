@@ -1,0 +1,17 @@
+[Unit]
+Description=Red Alert
+After=network-online.target
+Wants=network-online.target systemd-networkd-wait-online.service
+StartLimitIntervalSec=5
+StartLimitBurst=5
+
+[Service]
+KillSignal=SIGINT
+WorkingDirectory=/opt/redalert
+Type=simple
+User=root
+ExecStart=/usr/bin/python3 /opt/redalert/redalert.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
