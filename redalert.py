@@ -7,7 +7,7 @@ import json
 import time
 from loguru import logger
 from datetime import datetime
-from rpi_ws281x import Adafruit_NeoPixel, Color
+#from rpi_ws281x import Adafruit_NeoPixel, Color
 
 
 os.environ["PYTHONIOENCODING"] = "utf-8"
@@ -28,7 +28,7 @@ MAX_IDS         = int(os.getenv("MAX_IDS", "1000"))
 TARGET_LOCATION = os.getenv("TARGET_LOCATION", "").strip()
 
 # Release timer: 5 minutes
-RELEASE_TIMEOUT_SECONDS = 5 * 60
+RELEASE_TIMEOUT_SECONDS = 10 * 60
 
 logger.info("Monitoring alerts")
 
@@ -49,38 +49,6 @@ url = "https://www.oref.org.il/WarningMessages/alert/alerts.json"
 
 seen_ids = []
 release_deadline = None
-
-
-def set_all(strip, color):
-    """Set all LEDs to the same color."""
-    for i in range(strip.numPixels()):
-        strip.setPixelColor(i, color)
-    strip.show()
-
-
-def set_green():
-    """Set all LEDs to green."""
-    set_all(strip, Color(0, 255, 0))
-
-
-def set_red():
-    """Set all LEDs to red."""
-    set_all(strip, Color(255, 0, 0))
-
-
-def set_blue():
-    """Set all LEDs to blue."""
-    set_all(strip, Color(0, 0, 255))
-
-
-def set_orange():
-    """Set all LEDs to orange for pre-alert indication."""
-    set_all(strip, Color(255, 80, 0))
-
-
-def turn_off():
-    """Turn off all LEDs."""
-    set_all(strip, Color(0, 0, 0))
 
 
 def cancel_release_timer(reason=""):
@@ -110,7 +78,6 @@ def check_release_timer():
 
     if time.time() >= release_deadline:
         logger.info("Release timer expired, turning LEDs off")
-        turn_off()
         release_deadline = None
 
 
@@ -179,27 +146,24 @@ def classify_event(cat, title):
 def on_alert(parsed):
     """Handle active alert events by setting LEDs red and logging details."""
     cancel_release_timer("new alert received")
-    set_red()
     logger.info(
-        f"on_alert | alert_id={parsed.get('id')} cat={parsed.get('cat')} title={parsed.get('title')}"
+        f"on_alert | alert_id={parsed.get('id')} cat={parsed.get('cat')} title={parsed.get('title')} data={parsed.get('data')}"
     )
 
 
 def on_pre_alert(parsed):
     """Handle pre-alert events by setting LEDs orange and logging details."""
     cancel_release_timer("new pre-alert received")
-    set_orange()
     logger.info(
-        f"on_pre_alert | alert_id={parsed.get('id')} cat={parsed.get('cat')} title={parsed.get('title')}"
+        f"on_pre_alert | alert_id={parsed.get('id')} cat={parsed.get('cat')} title={parsed.get('title')} data={parsed.get('data')}"
     )
 
 
 def on_release(parsed):
     """Handle release events by setting LEDs green and starting the timer."""
-    set_green()
     start_release_timer()
     logger.info(
-        f"on_release | alert_id={parsed.get('id')} cat={parsed.get('cat')} title={parsed.get('title')}"
+        f"on_release | alert_id={parsed.get('id')} cat={parsed.get('cat')} title={parsed.get('title')} data={parsed.get('data')}"
     )
 
 
@@ -211,20 +175,6 @@ EVENT_HANDLERS = {
 
 
 if __name__ == '__main__':
-    strip = Adafruit_NeoPixel(
-        LED_COUNT,
-        LED_PIN,
-        LED_FREQ_HZ,
-        LED_DMA,
-        LED_INVERT,
-        LED_BRIGHTNESS,
-        LED_CHANNEL
-    )
-    strip.begin()
-    set_blue()
-    time.sleep(2)
-    turn_off()
-
     try:
         while True:
             r = None
@@ -249,7 +199,8 @@ if __name__ == '__main__':
                 if parsed is None:
                     logger.debug("Ignoring invalid or empty JSON response")
                     continue
-
+                
+                #logger.info(parsed)
                 alert_id, cat, title, locations = extract_metadata(parsed)
 
                 if alert_id in seen_ids:
@@ -280,4 +231,3 @@ if __name__ == '__main__':
 
     except Exception as ex:
         logger.error(f"Fatal exception: {ex}")
-        turn_off()
